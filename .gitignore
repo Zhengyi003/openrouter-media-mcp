@@ -7,3 +7,6 @@ dist/
 !.env.example
 outputs/
 *.tgz
+.github/
+.vscode/
+核心文档/
