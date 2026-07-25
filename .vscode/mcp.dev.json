@@ -1,0 +1,37 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "openrouter-api-key",
+      "description": "OpenRouter API key",
+      "password": true
+    },
+    {
+      "type": "pickString",
+      "id": "openrouter-image-model",
+      "description": "Default OpenRouter image model for development",
+      "options": [
+        "openai/gpt-image-2",
+        "google/gemini-3-pro-image",
+        "google/gemini-2.5-flash-image",
+        "x-ai/grok-imagine-image-quality",
+        "google/gemini-3.1-flash-lite-image"
+      ],
+      "default": "google/gemini-3.1-flash-lite-image"
+    }
+  ],
+  "servers": {
+    "openrouterMediaDev": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${workspaceFolder:多模态MCP}/dist/index.js"
+      ],
+      "cwd": "${workspaceFolder:多模态MCP}",
+      "env": {
+        "OPENROUTER_API_KEY": "${input:openrouter-api-key}",
+        "OPENROUTER_IMAGE_MODEL": "${input:openrouter-image-model}"
+      }
+    }
+  }
+}
