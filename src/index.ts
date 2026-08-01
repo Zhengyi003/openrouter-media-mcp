@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
- * Starts the OpenRouter image MCP server over stdio.
- * Registration stays centralized here so the published tool surface remains
- * explicit and development-only diagnostics cannot leak into normal use.
+ * Entry point for the OpenRouter image MCP distribution.
+ *
+ * With no arguments it starts the MCP server over stdio. With `setup` or
+ * `setup --uninstall` it manages the VS Code user-level mcp.json entry so a
+ * Homebrew or npm install can converge on the same configuration shape.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
+import { parseSetupArgs, runSetup } from "./cli-setup.js";
 import { loadConfig } from "./config.js";
 import { registerLongCallDiagnostic } from "./tools/diagnose-long-call.js";
 import { registerGenerateImage } from "./tools/generate-image.js";
@@ -29,6 +32,12 @@ export function createServer(): McpServer {
 }
 
 async function main(): Promise<void> {
+  if (process.argv[2] === "setup") {
+    const options = parseSetupArgs(process.argv.slice(3));
+    await runSetup(options);
+    return;
+  }
+
   const server = createServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);

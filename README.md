@@ -2,27 +2,80 @@
 
 A local TypeScript MCP server that generates one image through OpenRouter, saves it to a caller-selected directory, and returns the image to the MCP client for preview.
 
+The server is designed for VS Code. It is distributed as a single CLI command, `openrouter-image-mcp`, that starts the MCP server over stdio and also provides a `setup` command that registers the server in your VS Code user configuration.
+
 ## Requirements
 
 - Node.js 20 or newer
 - An OpenRouter API key
 - VS Code with MCP support
 
-## Setup
+## Install
+
+Two supported installation paths both produce the same command, so the generated VS Code configuration is identical either way. Pick whichever you prefer.
+
+### Homebrew
 
 ```bash
-npm install
-npm run build
+brew install <your-tap>/openrouter-image-mcp && openrouter-image-mcp setup
 ```
 
-The workspace configuration in `.vscode/mcp.json` asks for two values when the server starts:
+### npm
+
+```bash
+npm install -g @lizhengyi/openrouter-image-mcp && openrouter-image-mcp setup
+```
+
+### What setup does
+
+`openrouter-image-mcp setup` reads the VS Code user-level `mcp.json`, adds the `openrouterImage` server entry and its two input variables, and writes the file back atomically without touching unrelated servers.
 
 - `OPENROUTER_API_KEY`: stored by VS Code as a password input.
 - `OPENROUTER_IMAGE_MODEL`: the default model used when a call omits `model`.
 
-The curated model choices span premium to budget options. OpenRouter capabilities and prices can change, so the server validates the selected model endpoint at call time. A tool call can override the installed default by passing `model` when the user requests another supported model.
+To remove the server later, run `openrouter-image-mcp setup --uninstall`.
 
-After building, run **MCP: List Servers** and restart `openrouterImage`. If the tool list is stale, run **MCP: Reset Cached Tools**.
+### Automatic configuration boundary
+
+`setup` targets the default local user profile of the Stable desktop build of VS Code. If you use multiple VS Code profiles, a Remote environment, VS Code Insiders, or another VS Code distribution, open the correct configuration manually with **MCP: Open User Configuration** or **MCP: Open Remote User Configuration** and add this server:
+
+```json
+{
+  "servers": {
+    "openrouterImage": {
+      "type": "stdio",
+      "command": "openrouter-image-mcp",
+      "env": {
+        "OPENROUTER_API_KEY": "${input:openrouter-image-api-key}",
+        "OPENROUTER_IMAGE_MODEL": "${input:openrouter-image-default-model}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "openrouter-image-api-key",
+      "type": "promptString",
+      "description": "OpenRouter API key",
+      "password": true
+    },
+    {
+      "id": "openrouter-image-default-model",
+      "type": "pickString",
+      "description": "Default OpenRouter model for generate_image",
+      "options": [
+        "openai/gpt-image-2",
+        "google/gemini-3-pro-image",
+        "google/gemini-2.5-flash-image",
+        "x-ai/grok-imagine-image-quality",
+        "google/gemini-3.1-flash-lite-image"
+      ],
+      "default": "google/gemini-3.1-flash-lite-image"
+    }
+  ]
+}
+```
+
+After installing, restart VS Code or run **MCP: List Servers** to start the server and confirm the tool list. If the tool list is stale, run **MCP: Reset Cached Tools**.
 
 ## Tool
 
@@ -58,7 +111,11 @@ Set `MCP_DIAGNOSTICS=1` only during development to expose `diagnose_long_call`. 
 
 ## Development
 
+These steps are for working on the repository itself, not for installing the server.
+
 ```bash
+npm install
+npm run build
 npm run typecheck
 npm test
 npm pack --dry-run

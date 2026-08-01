@@ -1,11 +1,14 @@
 /**
  * Builds and edits VS Code user-level MCP configuration for this server so
  * installation and removal can stay deterministic without duplicating inputs.
+ *
+ * The generated server entry uses the installed CLI name as the command so a
+ * Homebrew or npm install both converge to the same configuration shape.
  */
 
-const USER_SERVER_ID = "openrouterMedia";
-const USER_API_KEY_INPUT_ID = "openrouter-media-api-key";
-const USER_MODEL_INPUT_ID = "openrouter-media-default-model";
+const USER_SERVER_ID = "openrouterImage";
+const USER_API_KEY_INPUT_ID = "openrouter-image-api-key";
+const USER_MODEL_INPUT_ID = "openrouter-image-default-model";
 
 const USER_MODEL_OPTIONS = [
   "openai/gpt-image-2",
@@ -75,12 +78,10 @@ function buildInputs(config: UserMcpInstallConfig): McpInput[] {
   ];
 }
 
-function buildServer(rootDirectory: string, config: UserMcpInstallConfig): McpServer {
+function buildServer(config: UserMcpInstallConfig): McpServer {
   return {
     type: "stdio",
-    command: "node",
-    args: ["dist/index.js"],
-    cwd: rootDirectory,
+    command: "openrouter-image-mcp",
     env: {
       OPENROUTER_API_KEY: `\${input:${config.apiKeyInputId}}`,
       OPENROUTER_IMAGE_MODEL: `\${input:${config.modelInputId}}`,
@@ -90,7 +91,6 @@ function buildServer(rootDirectory: string, config: UserMcpInstallConfig): McpSe
 
 export function mergeUserMcpConfig(
   current: McpConfigFile,
-  rootDirectory: string,
   config: UserMcpInstallConfig = USER_MCP_INSTALL_CONFIG,
 ): McpConfigFile {
   const existingInputs = (current.inputs ?? []).filter(
@@ -103,7 +103,7 @@ export function mergeUserMcpConfig(
     inputs,
     servers: {
       ...(current.servers ?? {}),
-      [config.serverId]: buildServer(rootDirectory, config),
+      [config.serverId]: buildServer(config),
     },
   };
 }
