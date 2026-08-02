@@ -12,19 +12,36 @@ The server is designed for VS Code. It is distributed as a single CLI command, `
 
 ## Install
 
-Two supported installation paths both produce the same command, so the generated VS Code configuration is identical either way. Pick whichever you prefer.
+Every version is published as a GitHub Release whose asset is the single source of truth for installation. The recommended path is Homebrew; a manual download is available when Homebrew is not an option. Both end up with the same `openrouter-image-mcp` command, so the generated VS Code configuration is identical either way.
 
-### Homebrew
+### Homebrew (recommended)
 
 ```bash
 brew install <your-tap>/openrouter-image-mcp && openrouter-image-mcp setup
 ```
 
-### npm
+The formula downloads the compiled release asset from GitHub Releases and installs its runtime dependencies into a Homebrew-managed prefix.
 
-```bash
-npm install -g @lizhengyi/openrouter-image-mcp && openrouter-image-mcp setup
-```
+### Manual download
+
+1. Open the [releases page](https://github.com/Zhengyi003/openrouter-media-mcp/releases) and download `openrouter-image-mcp-<version>.tgz` for the version you want. Node.js 20 or newer is required.
+2. Extract the archive and install the runtime dependencies:
+
+   ```bash
+   tar -xzf openrouter-image-mcp-<version>.tgz -C openrouter-image-mcp
+   cd openrouter-image-mcp
+   npm install --omit=dev
+   ```
+
+3. Run the CLI from the extracted directory:
+
+   ```bash
+   node dist/index.js setup
+   ```
+
+   VS Code launches the MCP server itself by running the same entry point without arguments (`node dist/index.js`), so the setup step above is all you need to do by hand.
+
+A future npm channel is planned but not yet available; this page will be updated when it is.
 
 ### What setup does
 
@@ -118,7 +135,10 @@ npm install
 npm run build
 npm run typecheck
 npm test
-npm pack --dry-run
 ```
 
 All automated tests use in-memory transports and fake HTTP clients; they do not call OpenRouter or incur charges.
+
+### Releases
+
+Releases are produced by the GitHub Actions workflow `.github/workflows/release.yml`. Pushing a version tag (for example `v0.1.0`) runs typecheck and the test suite, verifies the tag matches `package.json`'s version, builds `dist/`, packs a compiled release asset (`openrouter-image-mcp-<version>.tgz`), and creates a GitHub Release with the asset and its SHA-256 checksum. That release asset is the single source of truth for both the Homebrew formula and manual downloads.

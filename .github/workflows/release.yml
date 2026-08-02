@@ -1,0 +1,90 @@
+# Release workflow
+#
+# Produces the single source of truth for installation artifacts: a compiled
+# Node archive uploaded to a GitHub Release. Pushing a version tag (v*) runs
+# the full checks, verifies the tag matches package.json, assembles the asset,
+# computes its SHA-256, and creates the GitHub Release. Both the Homebrew
+# formula and the manual-download instructions consume this same asset.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Verify tag matches package.json version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          echo "Git tag: ${GITHUB_REF_NAME}  package.json version: ${PKG_VERSION}"
+          if [ "${TAG_VERSION}" != "${PKG_VERSION}" ]; then
+            echo "::error::Git tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}"
+            exit 1
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Assemble release asset
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          STAGING="$(mktemp -d)"
+          mkdir -p "${STAGING}/package"
+          cp -r dist "${STAGING}/package/"
+          cp package.json "${STAGING}/package/"
+          cp README.md "${STAGING}/package/"
+          cp LICENSE "${STAGING}/package/"
+          # Fail the build if the CLI entry point is missing from the asset.
+          test -f "${STAGING}/package/dist/index.js"
+          # Pack with the archive root equal to the package contents so that
+          # Homebrew extraction places dist/, package.json, etc. directly.
+          tar -C "${STAGING}/package" -czf "openrouter-image-mcp-${PKG_VERSION}.tgz" .
+          sha256sum "openrouter-image-mcp-${PKG_VERSION}.tgz" \
+            > "openrouter-image-mcp-${PKG_VERSION}.sha256"
+          # Spot-check the archive is readable and contains the entry point.
+          tar -tzf "openrouter-image-mcp-${PKG_VERSION}.tgz" | grep -q "./dist/index.js"
+          cat "openrouter-image-mcp-${PKG_VERSION}.sha256"
+          echo "### Release asset sha256" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```text' >> "${GITHUB_STEP_SUMMARY}"
+          cat "openrouter-image-mcp-${PKG_VERSION}.sha256" >> "${GITHUB_STEP_SUMMARY}"
+          echo '```' >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          gh release create "${GITHUB_REF_NAME}" \
+            "openrouter-image-mcp-${PKG_VERSION}.tgz" \
+            "openrouter-image-mcp-${PKG_VERSION}.sha256" \
+            --title "openrouter-image-mcp ${PKG_VERSION}" \
+            --notes "Install with Homebrew or download the asset manually. See the README for instructions. The production tool surface is only generate_image."

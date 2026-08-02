@@ -1,31 +1,33 @@
-# Homebrew Formula template for openrouter-image-mcp
+# Homebrew Formula for openrouter-image-mcp
 #
 # Copy this file into a Homebrew tap repository as:
 #   Formula/openrouter-image-mcp.rb
 #
-# The formula downloads the same npm tarball that `npm install -g` uses, so the
-# Homebrew and npm installation paths converge on the same CLI command. When a
-# GitHub Release pipeline exists later, the `url`/`sha256` below can switch to
-# release assets without changing the rest of the formula.
+# The formula downloads the compiled release asset published on GitHub
+# Releases, installs its runtime dependencies into a prefix-local
+# node_modules, and exposes the `openrouter-image-mcp` command. GitHub
+# Release is the single source of truth for installation artifacts; the same
+# asset backs the manual-download instructions.
 #
-# Required fields to fill before use:
-#   - url: set to the published npm tarball, e.g.
-#       https://registry.npmjs.org/@lizhengyi/openrouter-image-mcp/-/openrouter-image-mcp-0.1.0.tgz
-#   - sha256: run `shasum -a 256 <downloaded.tgz>` and paste the value
+# Required fields to fill before each release:
+#   - url: the GitHub Release asset for this version, e.g.
+#       https://github.com/Zhengyi003/openrouter-media-mcp/releases/download/v0.1.0/openrouter-image-mcp-0.1.0.tgz
+#   - sha256: from the matching `<version>.sha256` asset or release notes
 
 class OpenrouterImageMcp < Formula
   desc "OpenRouter image generation MCP server for VS Code"
   homepage "https://github.com/Zhengyi003/openrouter-media-mcp"
-  url "https://registry.npmjs.org/@lizhengyi/openrouter-image-mcp/-/openrouter-image-mcp-0.1.0.tgz"
+  url "https://github.com/Zhengyi003/openrouter-media-mcp/releases/download/v0.1.0/openrouter-image-mcp-0.1.0.tgz"
   sha256 "<paste-shasum-256-here>"
   license "Apache-2.0"
 
   depends_on "node"
 
   def install
-    # The npm tarball ships compiled dist/ plus package.json; install the
+    # The release asset ships compiled dist/ plus package.json; install the
     # runtime dependencies into a prefix-local node_modules so the formula
     # does not depend on the user's global npm state.
+    libexec.install Dir["*"]
     system "npm", "install", "--omit=dev", "--no-audit", "--no-fund", "--prefix", libexec
 
     (bin/"openrouter-image-mcp").write <<~EOS
@@ -44,3 +46,4 @@ class OpenrouterImageMcp < Formula
     assert_match "setup", shell_output("#{bin}/openrouter-image-mcp 2>&1", 1)
   end
 end
+

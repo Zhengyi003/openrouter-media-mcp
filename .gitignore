@@ -7,6 +7,8 @@ dist/
 !.env.example
 outputs/
 *.tgz
-.github/
+# .github/ 整体不再忽略：发布 workflow 与指令文档需要入库。
+# 仅忽略本地工作产物，保留 .github/workflows/ 与 .github/copilot-instructions.md。
+.github/*.local
 .vscode/
 核心文档/
