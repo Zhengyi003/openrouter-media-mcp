@@ -18,7 +18,7 @@ class OpenrouterImageMcp < Formula
   desc "OpenRouter image generation MCP server for VS Code"
   homepage "https://github.com/Zhengyi003/openrouter-media-mcp"
   url "https://github.com/Zhengyi003/openrouter-media-mcp/releases/download/v0.1.0/openrouter-image-mcp-0.1.0.tgz"
-  sha256 "<paste-shasum-256-here>"
+  sha256 "e0c140d2fa0c90220e7b994e946de9c936b099d241de9bcc6c47c25726af14b2"
   license "Apache-2.0"
 
   depends_on "node"
