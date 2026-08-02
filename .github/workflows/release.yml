@@ -56,6 +56,9 @@ jobs:
         run: |
           set -euo pipefail
           PKG_VERSION="$(node -p "require('./package.json').version")"
+          ASSET_BASENAME="openrouter-image-mcp-${PKG_VERSION}"
+          ASSET_PATH="${GITHUB_WORKSPACE}/${ASSET_BASENAME}.tgz"
+          SHA_PATH="${GITHUB_WORKSPACE}/${ASSET_BASENAME}.sha256"
           STAGING="$(mktemp -d)"
           mkdir -p "${STAGING}/package"
           cp -r dist "${STAGING}/package/"
@@ -66,15 +69,14 @@ jobs:
           test -f "${STAGING}/package/dist/index.js"
           # Pack with the archive root equal to the package contents so that
           # Homebrew extraction places dist/, package.json, etc. directly.
-          tar -C "${STAGING}/package" -czf "openrouter-image-mcp-${PKG_VERSION}.tgz" .
-          sha256sum "openrouter-image-mcp-${PKG_VERSION}.tgz" \
-            > "openrouter-image-mcp-${PKG_VERSION}.sha256"
+          tar -C "${STAGING}/package" -czf "${ASSET_PATH}" .
+          sha256sum "${ASSET_PATH}" > "${SHA_PATH}"
           # Spot-check the archive is readable and contains the entry point.
-          tar -tzf "openrouter-image-mcp-${PKG_VERSION}.tgz" | grep -q "./dist/index.js"
-          cat "openrouter-image-mcp-${PKG_VERSION}.sha256"
+          tar -tzf "${ASSET_PATH}" | grep -q "./dist/index.js"
+          cat "${SHA_PATH}"
           echo "### Release asset sha256" >> "${GITHUB_STEP_SUMMARY}"
           echo '```text' >> "${GITHUB_STEP_SUMMARY}"
-          cat "openrouter-image-mcp-${PKG_VERSION}.sha256" >> "${GITHUB_STEP_SUMMARY}"
+          cat "${SHA_PATH}" >> "${GITHUB_STEP_SUMMARY}"
           echo '```' >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Create GitHub Release
@@ -83,8 +85,11 @@ jobs:
         run: |
           set -euo pipefail
           PKG_VERSION="$(node -p "require('./package.json').version")"
+          ASSET_BASENAME="openrouter-image-mcp-${PKG_VERSION}"
+          ASSET_PATH="${GITHUB_WORKSPACE}/${ASSET_BASENAME}.tgz"
+          SHA_PATH="${GITHUB_WORKSPACE}/${ASSET_BASENAME}.sha256"
           gh release create "${GITHUB_REF_NAME}" \
-            "openrouter-image-mcp-${PKG_VERSION}.tgz" \
-            "openrouter-image-mcp-${PKG_VERSION}.sha256" \
+            "${ASSET_PATH}" \
+            "${SHA_PATH}" \
             --title "openrouter-image-mcp ${PKG_VERSION}" \
             --notes "Install with Homebrew or download the asset manually. See the README for instructions. The production tool surface is only generate_image."
