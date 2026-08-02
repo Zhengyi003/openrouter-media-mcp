@@ -72,7 +72,7 @@ jobs:
           tar -C "${STAGING}/package" -czf "${ASSET_PATH}" .
           sha256sum "${ASSET_PATH}" > "${SHA_PATH}"
           # Spot-check the archive is readable and contains the entry point.
-          tar -tzf "${ASSET_PATH}" | grep -q "./dist/index.js"
+          tar -tzf "${ASSET_PATH}" | grep -Fx "./dist/index.js" > /dev/null
           cat "${SHA_PATH}"
           echo "### Release asset sha256" >> "${GITHUB_STEP_SUMMARY}"
           echo '```text' >> "${GITHUB_STEP_SUMMARY}"
