@@ -12,7 +12,12 @@ import {
   saveGeneratedImage,
   validateOutputDirectory,
 } from "../files/image-files.js";
-import { IMAGE_MODELS, isImageModel } from "../models/catalog.js";
+import {
+  getImageModelDefaults,
+  IMAGE_MODELS,
+  isImageModel,
+  type ImageModel,
+} from "../models/catalog.js";
 import { OpenRouterClient } from "../openrouter/client.js";
 import type {
   CapabilityDescriptor,
@@ -35,6 +40,7 @@ const inputShape = {
   background: z.enum(["auto", "transparent", "opaque"]).optional(),
   output_format: z.enum(["png", "jpeg", "webp"]).optional(),
   seed: z.number().int().nonnegative().optional(),
+  include_image: z.boolean().default(false),
 };
 
 type GenerateArguments = {
@@ -117,6 +123,22 @@ function buildPayload(
   };
 }
 
+function applyModelDefaults(
+  model: ImageModel,
+  arguments_: GenerateArguments,
+): GenerateArguments {
+  const defaults = getImageModelDefaults(model);
+  return {
+    ...arguments_,
+    ...(arguments_.quality === undefined && defaults.quality !== undefined && {
+      quality: defaults.quality,
+    }),
+    ...(arguments_.resolution === undefined && defaults.resolution !== undefined && {
+      resolution: defaults.resolution,
+    }),
+  };
+}
+
 export function registerGenerateImage(
   server: McpServer,
   config: ServerConfig,
@@ -131,7 +153,11 @@ export function registerGenerateImage(
         "Generate one image with OpenRouter and save it to a required local directory. " +
         "Generation usually takes about one minute and may take longer; this call waits " +
         "for the final result. Omit model to use the installed default, or set model when " +
-        "the user requests a different supported model.",
+        "the user requests a different supported model. The image is saved and metadata is " +
+        "returned by default; set include_image to true when the model should inspect the " +
+        "image in the current conversation context. For openai/gpt-image-2, use quality " +
+        "and do not provide resolution. For google/gemini-3.1-flash-image, use resolution " +
+        "and do not provide quality.",
       inputSchema: inputShape,
       outputSchema: {
         filePath: z.string(),
@@ -159,6 +185,8 @@ export function registerGenerateImage(
         };
       }
 
+      const effectiveArguments = applyModelDefaults(model, arguments_);
+
       const startedAt = Date.now();
       const client = createClient(config.apiKey);
       const heartbeat = setInterval(() => {
@@ -178,13 +206,13 @@ export function registerGenerateImage(
 
       try {
         const endpointResponse = await client.getImageEndpoints(model, extra.signal);
-        selectEndpoint(endpointResponse.endpoints, arguments_);
-        await validateOutputDirectory(arguments_.output_directory);
+        selectEndpoint(endpointResponse.endpoints, effectiveArguments);
+        await validateOutputDirectory(effectiveArguments.output_directory);
         const referenceUrls = await Promise.all(
-          (arguments_.reference_images ?? []).map(referenceFileToDataUrl),
+          (effectiveArguments.reference_images ?? []).map(referenceFileToDataUrl),
         );
         const response = await client.generateImage(
-          buildPayload(model, arguments_, referenceUrls),
+          buildPayload(model, effectiveArguments, referenceUrls),
           extra.signal,
         );
         const image = response.data[0];
@@ -192,7 +220,7 @@ export function registerGenerateImage(
           throw new Error("OpenRouter returned no image.");
         }
         const saved = await saveGeneratedImage(
-          arguments_.output_directory,
+          effectiveArguments.output_directory,
           image.b64_json,
           image.media_type,
         );
@@ -211,20 +239,26 @@ export function registerGenerateImage(
             ? "not reported"
             : `$${response.usage.cost.toFixed(6)} USD`;
 
+        const content: Array<
+          | { type: "image"; data: string; mimeType: string }
+          | { type: "text"; text: string }
+        > = [];
+        if (effectiveArguments.include_image) {
+          content.push({ type: "image", data: image.b64_json, mimeType: saved.mimeType });
+        }
+        content.push({
+          type: "text",
+          text: [
+            `Image saved to ${saved.filePath}`,
+            `Model: ${model}`,
+            `Elapsed: ${(elapsedMs / 1_000).toFixed(1)} seconds`,
+            `Cost: ${costText}`,
+            `References: ${referenceUrls.length}`,
+          ].join("\n"),
+        });
+
         return {
-          content: [
-            { type: "image", data: image.b64_json, mimeType: saved.mimeType },
-            {
-              type: "text",
-              text: [
-                `Image saved to ${saved.filePath}`,
-                `Model: ${model}`,
-                `Elapsed: ${(elapsedMs / 1_000).toFixed(1)} seconds`,
-                `Cost: ${costText}`,
-                `References: ${referenceUrls.length}`,
-              ].join("\n"),
-            },
-          ],
+          content,
           structuredContent,
         };
       } catch (error) {

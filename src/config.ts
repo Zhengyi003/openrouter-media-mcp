@@ -4,7 +4,7 @@
  * environment variables throughout the application.
  */
 
-const DEFAULT_MODEL = "google/gemini-3.1-flash-lite-image";
+const DEFAULT_MODEL = "openai/gpt-image-2";
 const DEFAULT_TIMEOUT_MS = 300_000;
 
 export interface ServerConfig {

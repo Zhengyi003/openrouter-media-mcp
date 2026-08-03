@@ -81,12 +81,9 @@ To remove the server later, run `openrouter-image-mcp setup --uninstall`.
       "description": "Default OpenRouter model for generate_image",
       "options": [
         "openai/gpt-image-2",
-        "google/gemini-3-pro-image",
-        "google/gemini-2.5-flash-image",
-        "x-ai/grok-imagine-image-quality",
-        "google/gemini-3.1-flash-lite-image"
+        "google/gemini-3.1-flash-image"
       ],
-      "default": "google/gemini-3.1-flash-lite-image"
+      "default": "openai/gpt-image-2"
     }
   ]
 }
@@ -107,9 +104,10 @@ Optional arguments:
 
 - `model`: overrides the installed default for this call.
 - `reference_images`: local PNG, JPEG, or WebP paths, up to the model endpoint limit and 20 MiB each.
-- `resolution`, `aspect_ratio`, `quality`, `background`, `output_format`, and `seed`: accepted only when a current endpoint supports them.
+- `include_image`: defaults to `false`; set it to `true` when the image should be included in MCP content for immediate model inspection. The image is always saved and metadata is always returned.
+- `resolution`, `aspect_ratio`, `quality`, `background`, `output_format`, and `seed`: accepted only when a current endpoint supports them. The default model is `openai/gpt-image-2` with `quality: "medium"`; `google/gemini-3.1-flash-image` uses `resolution: "1K"` by default. Explicit parameters override these defaults. For GPT Image 2, use `quality` and omit `resolution`; for Gemini 3.1 Flash Image, use `resolution` and omit `quality`.
 
-The result contains an MCP image content block, a text summary, and structured metadata with the absolute file path, MIME type, byte count, model, elapsed time, reference count, and cost when OpenRouter reports it.
+The result contains a text summary and structured metadata with the absolute file path, MIME type, byte count, model, elapsed time, reference count, and cost when OpenRouter reports it. When `include_image` is `true`, it also contains an MCP image content block.
 
 The output directory is validated before the paid generation request. Generated files use collision-resistant names and are written through a temporary file before atomic rename.
 

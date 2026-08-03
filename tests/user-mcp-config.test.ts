@@ -44,6 +44,14 @@ test("mergeUserMcpConfig adds this server with the unified CLI command", () => {
       USER_MCP_INSTALL_CONFIG.modelInputId,
     ],
   );
+  assert.deepEqual(
+    merged.inputs?.find((input) => input.id === USER_MCP_INSTALL_CONFIG.modelInputId)?.options,
+    ["openai/gpt-image-2", "google/gemini-3.1-flash-image"],
+  );
+  assert.equal(
+    merged.inputs?.find((input) => input.id === USER_MCP_INSTALL_CONFIG.modelInputId)?.default,
+    "openai/gpt-image-2",
+  );
 });
 
 test("removeUserMcpConfig removes only this server and its related inputs", () => {

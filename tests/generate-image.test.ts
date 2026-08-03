@@ -30,7 +30,7 @@ const PNG_BASE64 =
 
 const config: ServerConfig = {
   apiKey: "test-key",
-  defaultModel: "google/gemini-3.1-flash-lite-image",
+  defaultModel: "openai/gpt-image-2",
   diagnosticsEnabled: false,
   requestTimeoutMs: 5_000,
 };
@@ -43,6 +43,8 @@ class FakeImageClient implements ImageApiClient {
       output_format: { type: "enum", values: ["png", "jpeg"] },
       input_references: { type: "range", min: 0, max: 4 },
       seed: { type: "boolean" },
+      quality: { type: "enum", values: ["auto", "low", "medium", "high"] },
+      resolution: { type: "enum", values: ["512", "1K", "2K", "4K"] },
     },
   ) {}
 
@@ -102,7 +104,11 @@ test("uses installed default model and returns image plus saved file", async (co
   const result = await client.callTool(
     {
       name: "generate_image",
-      arguments: { prompt: "one pixel", output_directory: outputDirectory },
+      arguments: {
+        prompt: "one pixel",
+        output_directory: outputDirectory,
+        include_image: true,
+      },
     },
     CallToolResultSchema,
   );
@@ -111,6 +117,10 @@ test("uses installed default model and returns image plus saved file", async (co
   assert.equal(parsedResult.isError, undefined);
   assert.equal(fakeClient.generatedPayloads[0]?.model, config.defaultModel);
   assert.equal(parsedResult.content[0]?.type, "image");
+  assert.equal(
+    parsedResult.content[0]?.type === "image" ? parsedResult.content[0].data : undefined,
+    PNG_BASE64,
+  );
   const structured = parsedResult.structuredContent as {
     filePath: string;
     model: string;
@@ -141,6 +151,65 @@ test("explicit model overrides the installed default", async (context) => {
   });
 
   assert.equal(fakeClient.generatedPayloads[0]?.model, "openai/gpt-image-2");
+  assert.equal(fakeClient.generatedPayloads[0]?.quality, "medium");
+});
+
+test("uses model-specific defaults and honors explicit quality", async (context) => {
+  const outputDirectory = await mkdtemp(path.join(tmpdir(), "image-mcp-test-"));
+  const fakeClient = new FakeImageClient();
+  const { client, server } = await createConnectedPair(fakeClient);
+  context.after(async () => {
+    await client.close();
+    await server.close();
+    await rm(outputDirectory, { recursive: true, force: true });
+  });
+
+  await client.callTool({
+    name: "generate_image",
+    arguments: {
+      prompt: "one pixel",
+      output_directory: outputDirectory,
+      model: "google/gemini-3.1-flash-image",
+    },
+  });
+  assert.equal(fakeClient.generatedPayloads[0]?.resolution, "1K");
+  assert.equal(fakeClient.generatedPayloads[0]?.quality, undefined);
+
+  await client.callTool({
+    name: "generate_image",
+    arguments: {
+      prompt: "one pixel",
+      output_directory: outputDirectory,
+      quality: "high",
+    },
+  });
+  assert.equal(fakeClient.generatedPayloads[1]?.quality, "high");
+});
+
+test("omits image content by default while keeping the saved result", async (context) => {
+  const outputDirectory = await mkdtemp(path.join(tmpdir(), "image-mcp-test-"));
+  const fakeClient = new FakeImageClient();
+  const { client, server } = await createConnectedPair(fakeClient);
+  context.after(async () => {
+    await client.close();
+    await server.close();
+    await rm(outputDirectory, { recursive: true, force: true });
+  });
+
+  const result = CallToolResultSchema.parse(
+    await client.callTool({
+      name: "generate_image",
+      arguments: {
+        prompt: "one pixel",
+        output_directory: outputDirectory,
+      },
+    }),
+  );
+
+  assert.equal(result.isError, undefined);
+  assert.deepEqual(result.content.map((item) => item.type), ["text"]);
+  const structured = result.structuredContent as { filePath: string };
+  assert.deepEqual(await readFile(structured.filePath), Buffer.from(PNG_BASE64, "base64"));
 });
 
 test("rejects unsupported parameters before generation", async (context) => {

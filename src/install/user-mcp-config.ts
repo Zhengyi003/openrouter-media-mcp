@@ -12,10 +12,7 @@ const USER_MODEL_INPUT_ID = "openrouter-image-default-model";
 
 const USER_MODEL_OPTIONS = [
   "openai/gpt-image-2",
-  "google/gemini-3-pro-image",
-  "google/gemini-2.5-flash-image",
-  "x-ai/grok-imagine-image-quality",
-  "google/gemini-3.1-flash-lite-image",
+  "google/gemini-3.1-flash-image",
 ] as const;
 
 type McpInput = {
@@ -57,7 +54,7 @@ export const USER_MCP_INSTALL_CONFIG: UserMcpInstallConfig = {
   apiKeyInputId: USER_API_KEY_INPUT_ID,
   modelInputId: USER_MODEL_INPUT_ID,
   modelOptions: USER_MODEL_OPTIONS,
-  defaultModel: "google/gemini-3.1-flash-lite-image",
+  defaultModel: "openai/gpt-image-2",
 };
 
 function buildInputs(config: UserMcpInstallConfig): McpInput[] {
