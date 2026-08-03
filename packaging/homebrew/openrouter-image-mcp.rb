@@ -28,7 +28,7 @@ class OpenrouterImageMcp < Formula
     # runtime dependencies into a prefix-local node_modules so the formula
     # does not depend on the user's global npm state.
     libexec.install Dir["*"]
-    system "npm", "install", *std_npm_args, "--omit=dev", "--prefix", libexec
+    system "npm", "install", *std_npm_args(prefix: false), "--omit=dev", "--prefix", libexec
 
     (bin/"openrouter-image-mcp").write <<~EOS
       #!/bin/bash
